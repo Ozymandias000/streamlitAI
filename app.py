@@ -6,6 +6,14 @@ import streamlit as st          # Creates web interface components
 import chromadb                # Stores and searches through documents  
 from transformers import pipeline  # AI model for generating answers
 
+# Fix SQLite version issue for ChromaDB on Streamlit Cloud
+try:
+    __import__('pysqlite3')
+    import sys
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass
+
 # Custom CSS for button styling 
 st.markdown("""
     <style>
