@@ -7,3 +7,7 @@ markdown
 langchain-experimental
 langchain-huggingface
 scipy
+spacy
+pandas
+protobu==3.20.3
+psyqlite3.binary
