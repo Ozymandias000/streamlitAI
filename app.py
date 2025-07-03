@@ -289,3 +289,147 @@ with st.expander("ℹ️ **WHAT CAN I ASK ABOUT?**"):
     """)
 
 # TO RUN: Save as app.py, then type: streamlit run app.py
+
+# --- Insert your Feature 1 function here ---
+def get_answer_with_source(collection, question):
+    """Enhanced answer function that shows source document"""
+    results = collection.query(
+        query_texts=[question],
+        n_results=3
+    )
+    docs = results["documents"][0]
+    distances = results["distances"][0]
+    ids = results["ids"][0]  # This tells us which document
+    if not docs or min(distances) > 1.5:
+        return "I don't have information about that topic.", "No source"
+    context = "\n\n".join([f"Document {i+1}: {doc}" for i, doc in enumerate(docs)])
+    prompt = f"""Context information:
+{context}
+Question: {question}
+Answer:"""
+    ai_model = pipeline("text2text-generation", model="google/flan-t5-small")
+    response = ai_model(prompt, max_length=150)
+    answer = response[0]['generated_text'].strip()
+    # Extract source from best matching document
+    best_source = ids[0].split('_doc_')[0]  # Get filename from ID
+    return answer, best_source
+
+# --- Insert your Feature 2 function here ---
+def show_document_manager():
+    """Display document manager interface"""
+    st.subheader("📋 Manage Documents")
+    if not st.session_state.get('converted_docs'):
+        st.info("No documents uploaded yet.")
+        return
+    # Show each document with delete button
+    for i, doc in enumerate(st.session_state.converted_docs):
+        col1, col2, col3 = st.columns([3, 1, 1])
+        with col1:
+            st.write(f"📋 {doc['filename']}")
+            st.write(f" Words: {len(doc['content'].split())}")
+        with col2:
+            # Preview button
+            if st.button("Preview", key=f"preview_{i}"):
+                st.session_state[f'show_preview_{i}'] = True
+        with col3:
+            # Delete button
+            if st.button("Delete", key=f"delete_{i}"):
+                # Remove from session state
+                st.session_state.converted_docs.pop(i)
+                # Rebuild database
+                st.session_state.collection = setup_documents()
+                add_docs_to_database(st.session_state.collection,
+                                     st.session_state.converted_docs)
+                st.experimental_rerun()
+        # Show preview if requested
+        if st.session_state.get(f'show_preview_{i}', False):
+            with st.expander(f"Preview: {doc['filename']}", expanded=True):
+                st.text(doc['content'][:500] + "..." if len(doc['content']) > 500
+                        else doc['content'])
+            if st.button("Hide Preview", key=f"hide_{i}"):
+                st.session_state[f'show_preview_{i}'] = False
+                st.experimental_rerun()
+
+# --- Helper functions needed for Feature 2 and 5 ---
+
+def add_docs_to_database(collection, docs):
+    # Helper to add new docs with unique IDs
+    # Docs: list of dict with 'filename' and 'content'
+    new_ids = []
+    new_texts = []
+    for doc in docs:
+        # Make an id using filename + incremental
+        new_ids.append(doc['filename'])
+        new_texts.append(doc['content'])
+    collection.add(documents=new_texts, ids=new_ids)
+    return len(docs)
+
+def convert_uploaded_files(uploaded_files):
+    # Dummy placeholder function for converting uploaded files
+    # You should replace this with actual conversion logic
+    converted = []
+    for f in uploaded_files:
+        converted.append({
+            "filename": f.name,
+            "content": f.getvalue().decode("utf-8", errors="ignore")
+        })
+    return converted
+
+# --- Feature 5: Tabbed interface with Upload, Ask, Manage, Stats ---
+def create_tabbed_interface():
+    tab1, tab2, tab3, tab4 = st.tabs(["Upload", "📋 Ask Questions", "📋 Manage", "📋❓ Stats"])
+    
+    with tab1:
+        st.header("Upload & Convert Documents")
+        uploaded_files = st.file_uploader(
+            "Choose files",
+            type=["pdf", "doc", "docx", "txt"],
+            accept_multiple_files=True
+        )
+        if st.button("Convert & Add"):
+            if uploaded_files:
+                converted_docs = convert_uploaded_files(uploaded_files)
+                if converted_docs:
+                    num_added = add_docs_to_database(st.session_state.collection,
+                                                    converted_docs)
+                    if 'converted_docs' not in st.session_state:
+                        st.session_state.converted_docs = []
+                    st.session_state.converted_docs.extend(converted_docs)
+                    st.success(f"Added {num_added} documents!")
+                    
+    with tab2:
+        st.header("Ask Questions")
+        if st.session_state.get('converted_docs'):
+            question = st.text_input("Your question:")
+            if st.button("Get Answer"):
+                if question:
+                    answer, source = get_answer_with_source(st.session_state.collection, question)
+                    st.write("**Answer:**")
+                    st.write(answer)
+                    st.write(f"**Source:** {source}")
+                else:
+                    st.info("Please enter a question!")
+        else:
+            st.info("Upload documents first!")
+        # Optionally: add search history here
+    
+    with tab3:
+        show_document_manager()
+    
+    with tab4:
+        st.header("Document Stats")
+        if st.session_state.get('converted_docs'):
+            st.write(f"Total uploaded documents: {len(st.session_state.converted_docs)}")
+            total_words = sum(len(doc['content'].split()) for doc in st.session_state.converted_docs)
+            st.write(f"Total words across documents: {total_words}")
+        else:
+            st.info("No documents uploaded yet.")
+
+# --- INITIALIZE SESSION STATE VARIABLES ---
+if 'converted_docs' not in st.session_state:
+    st.session_state.converted_docs = []
+if 'collection' not in st.session_state:
+    st.session_state.collection = setup_documents()
+
+# --- REPLACE THE ORIGINAL UI WITH TAB INTERFACE ---
+create_tabbed_interface()
