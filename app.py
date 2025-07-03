@@ -56,6 +56,40 @@ st.markdown(
 
 # Your app starts here
 
+def convert_to_markdown(file_path: str) -> str:
+    path = Path(file_path)
+    ext = path.suffix.lower()
+
+    if ext == ".pdf":
+        pdf_opts = PdfPipelineOptions(do_ocr=False)
+        pdf_opts.accelerator_options = AcceleratorOptions(
+            num_threads=4,
+            device=AcceleratorDevice.CPU
+        )
+        converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_options=pdf_opts,
+                    backend=DoclingParseV2DocumentBackend
+                )
+            }
+        )
+        doc = converter.convert(file_path).document
+        return doc.export_to_markdown(image_mode="placeholder")
+
+    if ext in [".doc", ".docx"]:
+        converter = DocumentConverter()
+        doc = converter.convert(file_path).document
+        return doc.export_to_markdown(image_mode="placeholder")
+
+    if ext == ".txt":
+        try:
+            return path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return path.read_text(encoding="latin-1", errors="replace")
+
+    raise ValueError(f"Unsupported extension: {ext}")
+
 def setup_documents():
     """
     This function creates our document database
@@ -129,13 +163,13 @@ def get_answer(collection, question):
     # - More explicit instructions about staying within context
     # - Clear format structure
     prompt = f"""Context information:
-{context}
+        {context}
 
-Question: {question}
+        Question: {question}
 
-Instructions: Answer ONLY using the information provided above. If the answer is not in the context, respond with "I don't know." Do not add information from outside the context.
+        Instructions: Answer ONLY using the information provided above. If the answer is not in the context, respond with "I don't know." Do not add information from outside the context.
 
-Answer:"""
+        Answer:"""
     
     # STEP 6: Generate answer with anti-hallucination parameters
     ai_model = pipeline("text2text-generation", model="google/flan-t5-small")
@@ -223,6 +257,8 @@ st.markdown("""
 # We call our function to set up the document database
 # This happens every time someone uses the app
 collection = setup_documents()
+
+
 
 # STREAMLIT BUILDING BLOCK 4: TEXT INPUT BOX
 # st.text_input() creates a box where users can type
