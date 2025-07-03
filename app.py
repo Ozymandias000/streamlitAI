@@ -295,124 +295,89 @@ with st.expander("ℹ️ **WHAT CAN I ASK ABOUT?**"):
 
 # --- ADVANCED: DOCUMENT UPLOAD & KNOWLEDGE BASE EXTENSION ---
 
+
 import streamlit as st
-from pathlib import Path
 import tempfile
+import chromadb
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
 
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions, AcceleratorOptions, AcceleratorDevice
-
-
+# Dummy convert_to_markdown for illustration
 def convert_to_markdown(file_path: str) -> str:
-    path = Path(file_path)
-    ext = path.suffix.lower()
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        return f.read()
 
-    if ext == ".pdf":
-        pdf_opts = PdfPipelineOptions(do_ocr=False)
-        pdf_opts.accelerator_options = AcceleratorOptions(
-            num_threads=4,
-            device=AcceleratorDevice.CPU
-        )
-        converter = DocumentConverter(
-            format_options={
-                InputFormat.PDF: PdfFormatOption(
-                    pipeline_options=pdf_opts,
-                    backend=DoclingParseV2DocumentBackend
-                )
-            }
-        )
-        doc = converter.convert(file_path).document
-        return doc.export_to_markdown(image_mode="placeholder")
+def reset_collection(client, collection_name: str):
+    try:
+        client.delete_collection(name=collection_name)
+    except Exception:
+        pass
+    return client.create_collection(name=collection_name)
 
-    if ext in [".doc", ".docx"]:
-        converter = DocumentConverter()
-        doc = converter.convert(file_path).document
-        return doc.export_to_markdown(image_mode="placeholder")
+def add_text_to_chromadb(text: str, filename: str, collection_name: str = "documents"):
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=700,
+        chunk_overlap=100,
+        separators=["\n\n", "\n", " ", ""]
+    )
+    chunks = splitter.split_text(text)
+    if not hasattr(add_text_to_chromadb, 'client'):
+        add_text_to_chromadb.client = chromadb.Client()
+        add_text_to_chromadb.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        add_text_to_chromadb.collections = {}
 
-    if ext == ".txt":
+    if collection_name not in add_text_to_chromadb.collections:
         try:
-            return path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            return path.read_text(encoding="latin-1", errors="replace")
+            collection = add_text_to_chromadb.client.get_collection(name=collection_name)
+        except:
+            collection = add_text_to_chromadb.client.create_collection(name=collection_name)
+        add_text_to_chromadb.collections[collection_name] = collection
+    else:
+        collection = add_text_to_chromadb.collections[collection_name]
 
-    raise ValueError(f"Unsupported extension: {ext}")
-
+    for i, chunk in enumerate(chunks):
+        embedding = add_text_to_chromadb.embedding_model.encode(chunk).tolist()
+        metadata = {"filename": filename, "chunk_index": i, "chunk_size": len(chunk)}
+        collection.add(
+            embeddings=[embedding],
+            documents=[chunk],
+            metadatas=[metadata],
+            ids=[f"{filename}_chunk_{i}"]
+        )
+    return collection
 
 def main():
-    st.title("Batch Document to Markdown")
+    st.title("Padelmate with Document Upload")
 
-    uploaded = st.file_uploader(
-        "Choose files (PDF, DOC, DOCX, TXT)",
-        type=["pdf", "doc", "docx", "txt"],
-        accept_multiple_files=True
-    )
+    if 'upload_section_visible' not in st.session_state:
+        st.session_state['upload_section_visible'] = False
 
-    dest = st.text_input(
-        "Destination folder",
-        value="output_markdown"
-    )
+    if st.button("Upload Documents"):
+        st.session_state['upload_section_visible'] = not st.session_state['upload_section_visible']
 
-    # prepare session state for downloads
-    if "downloads" not in st.session_state:
-        st.session_state.downloads = []
-
-    if st.button("Start conversion"):
-        if not uploaded:
-            st.error("No files selected.")
-            return
-
-        # reset downloads list
-        st.session_state.downloads = []
-
-        out_folder = Path(dest)
-        out_folder.mkdir(parents=True, exist_ok=True)
-
-        progress = st.progress(0)
-        status = st.empty()
-
-        total = len(uploaded)
-
-        for idx, up in enumerate(uploaded, start=1):
-            name = up.name
-            status.text(f"Converting {name} ({idx}/{total})")
-            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(name).suffix) as tmp:
-                tmp.write(up.getvalue())
-                tmp_path = tmp.name
-
-            try:
-                md = convert_to_markdown(tmp_path)
-                out_file = out_folder / f"{Path(name).stem}.md"
-                out_file.write_text(md, encoding="utf-8", errors="replace")
-
-                # store for download
-                st.session_state.downloads.append((out_file.name, md))
-
-            except Exception as e:
-                st.warning(f"Failed: {name}: {e}")
-
-            progress.progress(idx / total)
-
-        status.text("Conversion done.")
-        st.success(f"Saved markdown files to {out_folder.resolve()}")
-
-    # show download buttons after conversion
-    if st.session_state.downloads:
-        st.markdown("### Download Converted Files")
-        for name, md in st.session_state.downloads:
-            st.download_button(
-                label=f"Download {name}",
-                data=md,
-                file_name=name,
-                mime="text/markdown",
-                key=f"dl_{name}"
+    if st.session_state['upload_section_visible']:
+        with st.expander("Upload your documents here", expanded=True):
+            uploaded_files = st.file_uploader(
+                "Choose files",
+                type=["pdf", "doc", "docx", "txt"],
+                accept_multiple_files=True
             )
-
+            if st.button("Chunk and Store Documents"):
+                if uploaded_files:
+                    client = chromadb.Client()
+                    collection = reset_collection(client, "documents")
+                    for file in uploaded_files:
+                        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                            temp_file.write(file.getvalue())
+                            temp_file_path = temp_file.name
+                        text = convert_to_markdown(temp_file_path)  # Replace with your actual function
+                        collection = add_text_to_chromadb(text, file.name, collection_name="documents")
+                    st.success("Documents processed and stored!")
+                else:
+                    st.error("Please upload at least one file.")
 
 if __name__ == "__main__":
     main()
-
 
 
 def reset_collection(client, collection_name: str):
