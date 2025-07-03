@@ -3,6 +3,12 @@ from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions, AcceleratorOptions, AcceleratorDevice
+
+
 # Simple Q&A App using Streamlit
 # Students: Replace the documents below with your own!
 
