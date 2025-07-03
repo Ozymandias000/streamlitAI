@@ -9,83 +9,159 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, AcceleratorOptions, AcceleratorDevice
-
-
 from datetime import datetime
 
+def add_custom_css():
+    st.markdown("""
+    <!-- Load Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitcount+Grid+Double:wght@355&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
 
-# Custom CSS for button styling 
-st.markdown("""
     <style>
-    div.stButton > button:first-child {
-        background-color: #C1440E;
+    /* --- Base styling --- */
+    html, body, .stApp {
+        min-height: 100vh;
+        background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+        url("https://cdn.pixabay.com/photo/2021/06/04/06/54/racket-6308994_1280.jpg") no-repeat center center fixed;
+        background-size: cover;
+        font-family: 'Cal Sans', sans-serif !important;
+        font-weight: 400;
+        font-style: normal;
+        position: relative;
         color: white;
-        border-radius: 8px;
-        height: 3em;
+    }
+
+    /* --- Title Styling --- */
+    h1.custom-title {
+        font-family: "Bitcount Grid Double", system-ui, sans-serif !important;
+        font-weight: 355;
+        text-align: center;
+        font-size: 80px;
+        font-variation-settings: "slnt" 0, "CRSV" 0.2, "ELSH" 0, "ELXP" 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    p.custom-subtitle {
+        font-family: "Cal Sans", sans-serif;
+        font-size: 18px;
+        color: white;
+        text-align: center;
+        font-weight: 400;
+        margin: 0;
+        padding: 0;
+        margin-top: -10px; /* pull closer to title */
+        text-transform: uppercase;
+        letter-spacing: 1.1px;
+    }
+               
+
+    /* --- Intro paragraph styling --- */
+    p.intro-text {
+        font-family: "Cal Sans", sans-serif;
+        font-size: 10px;
+        color: white;
+        text-align: right;
+        margin-top: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    /* --- Button styling --- */
+    .stButton > button {
         width: 100%;
-        font-size: 16px;
+        border-radius: 8px;
+        height: 3rem;
         font-weight: bold;
+        background: linear-gradient(90deg, #C1440E, #1a1a1a );
+        color: white;
+        border: none;
+        font-size: 1.1rem;
+        box-shadow: 0 1px 4px rgba(216, 27, 96, 0.08);
+        transition: background 0.2s;
+        font-family: 'Cal Sans', sans-serif !important;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(90deg, #C1440E, #1a1a1a );
+        color: #C1440E;
+    }
+
+    /* --- Tabs styling --- */
+    .stTabs [data-baseweb="tab-list"] {
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #FFFFFF;
+        background: #C1440E;
+        border-radius: 8px 8px 0 0;
+        margin-right: 0.5rem;
+        padding: 0.7rem 1.5rem;
+    }
+    .stTabs [aria-selected="true"] {
+        background: #555555;
+        color: #FFFFFF;
+    }
+
+    /* --- Expander header --- */
+    .st-expanderHeader {
+        font-size: 1.05rem;
+        color: #FFFFFF;
+    }
+
+    /* --- Alert boxes --- */
+    .stAlert {
+        border-radius: 8px;
+    }
+
+    /* --- Additional utility classes --- */
+    .success-box {
+        padding: 1rem;
+        background-color: #C1440E;
+        border: 1px solid #fce4ec;
+        border-radius: 8px;
+        margin: 1rem 0;
+        color: #FFFFFF;
+        font-size: 1.1rem;
+    }
+    .info-box {
+        padding: 1rem;
+        background-color: #C1440E;
+        border: 1px solid #f8bbd0;
+        border-radius: 8px;
+        margin: 1rem 0;
+        color: #FFFFFF;
+        font-size: 1.1rem;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 🌄 Set background image and style
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-image: url("https://cdn.pixabay.com/photo/2021/06/04/06/54/racket-6308994_1280.jpg");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        color: white;
-    }
 
-    .block-container {
-        background-color: rgba(0, 0, 0, 0.5);
-        padding: 2rem;
-        border-radius: 10px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Usage example: 
+# In your main app file, call add_custom_css() before rendering title and intro:
 
-# Your app starts here
+add_custom_css()
 
-def convert_to_markdown(file_path: str) -> str:
-    path = Path(file_path)
-    ext = path.suffix.lower()
+st.markdown("""
+<div style="border-radius: 18px; padding: 1.5rem 0 1.2rem 0; margin-bottom: 0.2rem; margin-top: -2.5rem;">
+    <h1 class="custom-title" style="font-family: 'Bitcount Grid Double', system-ui, sans-serif; font-weight: 355; font-size: 110px;">
+        <span style="color:#C1440E;">PADEL</span><span style="color:#FFD700;">MATE</span>
+    </h1>
+    <p class="custom-subtitle" style="font-size: 32px;">YOUR FRIENDLY PADEL CHATBOT</p>
+</div>
 
-    if ext == ".pdf":
-        pdf_opts = PdfPipelineOptions(do_ocr=False)
-        pdf_opts.accelerator_options = AcceleratorOptions(
-            num_threads=4,
-            device=AcceleratorDevice.CPU
-        )
-        converter = DocumentConverter(
-            format_options={
-                InputFormat.PDF: PdfFormatOption(
-                    pipeline_options=pdf_opts,
-                    backend=DoclingParseV2DocumentBackend
-                )
-            }
-        )
-        doc = converter.convert(file_path).document
-        return doc.export_to_markdown(image_mode="placeholder")
-
-    if ext in [".doc", ".docx"]:
-        converter = DocumentConverter()
-        doc = converter.convert(file_path).document
-        return doc.export_to_markdown(image_mode="placeholder")
-
-    if ext == ".txt":
-        try:
-            return path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            return path.read_text(encoding="latin-1", errors="replace")
-
-    raise ValueError(f"Unsupported extension: {ext}")
+<div style="border-radius: 14px; padding: 1.2rem 2.5rem 1.2rem 2.5rem; margin-top: 0; margin-bottom: 1.5rem;">
+    <p class="intro-text" style="font-size: 22px;">
+            Curious about padel? 🤔<br>
+            Ask me anything about the sport!<br>
+            I'm here to help you learn and discover everything about padel.
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 def setup_documents():
     """
@@ -160,13 +236,13 @@ def get_answer(collection, question):
     # - More explicit instructions about staying within context
     # - Clear format structure
     prompt = f"""Context information:
-        {context}
+{context}
 
-        Question: {question}
+Question: {question}
 
-        Instructions: Answer ONLY using the information provided above. If the answer is not in the context, respond with "I don't know." Do not add information from outside the context.
+Instructions: Answer ONLY using the information provided above. If the answer is not in the context, respond with "I don't know." Do not add information from outside the context.
 
-        Answer:"""
+Answer:"""
     
     # STEP 6: Generate answer with anti-hallucination parameters
     ai_model = pipeline("text2text-generation", model="google/flan-t5-small")
@@ -182,80 +258,12 @@ def get_answer(collection, question):
     
     # STEP 8: Return the final answer
     return answer
-
-# MAIN APP STARTS HERE - This is where we build the user interface
-
-# STREAMLIT BUILDING BLOCK 1: PAGE TITLE
-# st.title() creates a large heading at the top of your web page
-# The emoji 🤖 makes it more visually appealing
-# This appears as the biggest text on your page
-# Title
-st.markdown("""
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bitcount+Grid+Double:wght@355&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Cal+Sans&display=swap" rel="stylesheet">
-
-<style>
-  h1.custom-title {
-    font-family: "Bitcount Grid Double", system-ui;
-    font-weight: 355;
-    text-align: center;
-    font-size: 80px;
-    font-variation-settings: "slnt" 0, "CRSV" 0.2, "ELSH" 0, "ELXP" 0;
-    margin: 0;
-    padding: 0;
-  }
-  p.custom-subtitle {
-    font-family: "Cal Sans", sans-serif;
-    font-size: 18px;
-    color: white;
-    text-align: center;
-    font-weight: 400;
-    margin: 0;
-    padding: 0;
-    margin-top: -10px; /* pull it closer */
-    text-transform: uppercase;
-    letter-spacing: 1.1px;
-  }
-</style>
-
-<h1 class="custom-title">
-  <span style="color:#C1440E;">PADEL</span><span style="color:#FFD700;">MATE</span>
-</h1>
-<p class="custom-subtitle">YOUR FRIENDLY PADEL CHATBOT</p>
-""", unsafe_allow_html=True)
-
-
-# STREAMLIT BUILDING BLOCK 2: DESCRIPTIVE TEXT  
-# st.write() displays regular text on the page
-# Use this for instructions, descriptions, or any text content
-# It automatically formats the text nicely
-# 💬 Intro
-st.markdown("""
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
-
-<p style="
-    font-family: 'ZCOOL QingKe HuangYou', sans-serif; 
-    font-size: 20px; 
-    color: white;
-    text-align: right;
-">
-    Curious about padel? 🤔<br>
-    Ask me anything about the sport!<br>
-    I'm here to help you learn and discover everything about padel.
-</p>
-""", unsafe_allow_html=True)
-# This text appears below the title and gives context to the app
+            
 
 # STREAMLIT BUILDING BLOCK 3: FUNCTION CALLS
 # We call our function to set up the document database
 # This happens every time someone uses the app
 collection = setup_documents()
-
-
 
 # STREAMLIT BUILDING BLOCK 4: TEXT INPUT BOX
 # st.text_input() creates a box where users can type
@@ -272,7 +280,7 @@ question = st.text_input("Type your question here...")
 # - type="primary" makes the button blue and prominent
 # - The button text appears on the button itself
 # 🔍 Button
-if st.button("🥎 FIND OUT NOW!", type="primary"):
+if st.button("🥎 **FIND OUT NOW!**"):
     
     # STREAMLIT BUILDING BLOCK 6: CONDITIONAL LOGIC
     # Check if user actually typed something (not empty)
@@ -309,22 +317,33 @@ if st.button("🥎 FIND OUT NOW!", type="primary"):
 # - Great for help text, instructions, or extra information
 # - Keeps the main interface clean
 # ℹ️ Help section
+
+st.markdown("""
+<style>
+    /* Change the expander header text color */
+    .streamlit-expanderHeader {
+        color: white !important;
+        font-weight: 600;
+    }
+</style>
+""", unsafe_allow_html=True)
 with st.expander("ℹ️ **WHAT CAN I ASK ABOUT?**"):
     st.markdown("""
-    🥎 THIS APP IS ALL ABOUT THE EXCITING WORLD OF **PADEL**!
-    
-    YOU CAN ASK ABOUT:
-    - 📜 THE HISTORY AND ORIGINS OF **PADEL**
-    - 🏆 TOP PLAYERS AND WORLD RANKINGS
-    - 🧠 RULES AND COURT DYNAMICS
-    - 🎒 EQUIPMENT AND GEAR CHOICES
-    - 🌍 HOW **PADEL** IS GROWING GLOBALLY
-    
-    💡 *TRY QUESTIONS LIKE “WHO’S THE BEST PADEL PLAYER?” OR “HOW DO PADEL RULES WORK?”*
-    💡 **TIP:** *ASK ABOUT PLAYERS, RULES, OR COURT DESIGN TO GET SPECIFIC ANSWERS.*
-    """)
+    <div style="background: rgba(245,245,245,0.65); border-radius: 20px; padding: 1.2rem 1.5rem; color: #333; font-family: 'Cal Sans', sans-serif;">
+    🥎 <strong>THIS APP IS ALL ABOUT THE EXCITING WORLD OF PADEL</strong>!<br>
+    YOU CAN ASK ABOUT:<br>
+    - 📜 THE HISTORY AND ORIGINS OF PADEL<br>
+    - 🏆 TOP PLAYERS AND WORLD RANKINGS<br>
+    - 🧠 RULES AND COURT DYNAMICS<br>
+    - 🎒 EQUIPMENT AND GEAR CHOICES<br>
+    - 🌍 HOW PADEL IS GROWING GLOBALLY<br>
+💡 <em>TRY QUESTIONS LIKE “WHO’S THE BEST PADEL PLAYER?” OR “HOW DO PADEL RULES WORK?”</em><br>
+💡 <strong>TIP:</strong> <em>ASK ABOUT PLAYERS, RULES, OR COURT DESIGN TO GET SPECIFIC ANSWERS.</em>
+    </div>
+    """, unsafe_allow_html=True)
 
-# TO RUN: Save as app.py, then type: streamlit run app.py
+
+
 
 # Convert uploaded file to markdown text
 def convert_to_markdown(file_path: str) -> str:
@@ -467,9 +486,15 @@ def show_search_history():
 
 # Document manager with delete and preview
 def show_document_manager():
-    st.subheader("📋 Manage Documents")
+    st.markdown(
+        '<h2 style="color: white; font-family: Cal Sans, sans-serif;">📋 Manage documents</h2>',
+        unsafe_allow_html=True
+    )
     if not st.session_state.get('converted_docs', []):
-        st.info("No documents uploaded yet.")
+        st.markdown(
+            '<span style="color: white; font-family: Cal Sans, sans-serif;">No documents uploaded yet.</span>',
+            unsafe_allow_html=True
+        )
         return
     for i, doc in enumerate(st.session_state.converted_docs):
         col1, col2, col3 = st.columns([3, 1, 1])
@@ -496,9 +521,12 @@ def show_document_manager():
 
 # Document statistics
 def show_document_stats():
-    st.subheader("📊 Document Statistics")
+    st.markdown(
+        '<h2 style="color: white; font-family: Cal Sans, sans-serif;">📊 Document statistics</h2>',
+        unsafe_allow_html=True
+    )
     if not st.session_state.get('converted_docs', []):
-        st.info("No documents to analyze.")
+        st.markdown('<span style="color: white; font-family: Cal Sans, sans-serif;">No documents to analyze.</span>', unsafe_allow_html=True)
         return
     total_docs = len(st.session_state.converted_docs)
     total_words = sum(len(doc['content'].split()) for doc in st.session_state.converted_docs)
@@ -540,3 +568,181 @@ def add_docs_to_database(collection, docs):
         add_text_to_chromadb(doc['content'], doc['filename'], collection_name="documents")
         count += 1
     return count
+    
+
+def create_tabbed_interface():
+    tab1, tab2, tab3, tab4 = st.tabs(["🎾 **UPLOAD**", "🔥 **QUESTIONS**", "📋 **MANAGE**", "📊 **STATS**"])
+
+    with tab1:
+        st.markdown(
+            '<h2 style="color: white; font-family: Cal Sans, sans-serif;">🎾 Upload your padel documents</h2>',
+            unsafe_allow_html=True
+        )
+        uploaded_files = st.file_uploader(
+            "",
+            type=["pdf", "doc", "docx", "txt"],
+            accept_multiple_files=True,
+            help="Supported formats: PDF, Word, and text files"
+        )
+        if st.button("💾 **ADD TO PADELMATE**", type="primary"):
+            if uploaded_files:
+                with st.spinner("Organizing your padel notes with passion..."):
+                    converted_docs = convert_uploaded_files(uploaded_files)
+                if 'converted_docs' not in st.session_state:
+                    st.session_state.converted_docs = []
+                if 'client' not in st.session_state:
+                    st.session_state.client = chromadb.Client()
+                if 'collection' not in st.session_state:
+                    st.session_state.collection = reset_collection(st.session_state.client, "padel_documents")
+                num_added = add_docs_to_database(st.session_state.collection, converted_docs)
+                st.session_state.converted_docs.extend(converted_docs)
+                st.markdown(
+                    f"<span style='color: white; font-family: \"Cal Sans\", sans-serif;'>🎾 Added {num_added} padel notes to your Knowledge Base!</span>",
+                    unsafe_allow_html=True
+                )
+            else:
+                st.info("Please select your padel files to upload first.")
+
+    with tab2:
+        st.markdown('<h2 style="color: white; font-family: Cal Sans, sans-serif;">🔥 Ask anything about your padel docs</h2>', unsafe_allow_html=True)
+        if st.session_state.get('converted_docs', []):
+            question, search_button, clear_button = enhanced_question_interface()
+            if search_button and question:
+                with st.spinner("Searching your padel wisdom..."):
+                    answer, source = get_answer_with_source(st.session_state.collection, question)
+                st.markdown("### ✨ Your Padel-Powered Answer")
+                st.write(answer)
+                st.info(f"📄 Source: {source}")
+                add_to_search_history(question, answer, source)
+            if clear_button:
+                st.session_state.search_history = []
+                st.success("Search history cleared!")
+            if st.session_state.get('search_history', []):
+                show_search_history()
+        else:
+            st.markdown(
+                "<span style='color: white; font-family: \"Cal Sans\", sans-serif;'>🎾 Upload some padel notes first to start your Q&A journey!</span>",
+                unsafe_allow_html=True
+            )
+
+    with tab3:
+        show_document_manager()
+
+    with tab4:
+        show_document_stats()
+
+
+
+
+# MAIN APP
+def enhanced_question_interface():
+    with st.expander("💡 Example questions you can ask"):
+        st.write("""
+        🎾 What is the best padel training routine mentioned in my notes?  
+        🏆 Who are the top-ranked players in padel history?  
+        🛠️ What equipment recommendations are in my documents?
+        """)
+    question = st.text_input(
+        "Type your question here:",
+        placeholder="e.g., What is the best padel training routine mentioned in my notes?"
+    )
+    col1, col2 = st.columns([1, 1])
+    # The following lines must NOT be indented further than this line
+    with col1:
+        search_button = st.button("🔍 **SEARCH**", type="primary")
+    with col2:
+        clear_button = st.button("🗑️ **CLEAR HISTORY**")
+    return question, search_button, clear_button
+
+
+def main():
+    add_custom_css()
+    # Removed the title and subtitle markdown lines here
+    if 'converted_docs' not in st.session_state:
+        st.session_state.converted_docs = []
+    if 'client' not in st.session_state:
+        st.session_state.client = chromadb.Client()
+    if 'collection' not in st.session_state:
+        st.session_state.collection = reset_collection(st.session_state.client, "documents")
+    if 'search_history' not in st.session_state:
+        st.session_state.search_history = []
+    create_tabbed_interface()
+
+def main():
+    add_custom_css()
+    
+    if 'converted_docs' not in st.session_state:
+        st.session_state.converted_docs = []
+    if 'client' not in st.session_state:
+        st.session_state.client = chromadb.Client()
+    if 'collection' not in st.session_state:
+        st.session_state.collection = reset_collection(st.session_state.client, "documents")
+    if 'search_history' not in st.session_state:
+        st.session_state.search_history = []
+
+    with st.expander("**🎛️ ADVANCED FEATURES**"):
+        create_tabbed_interface()
+
+        st.markdown("""
+        <style>
+            /* Add black border to all expanders */
+            .st-expander {
+                border: 20px solid #000 !important;
+                border-radius: 10px !important;
+                box-shadow: none !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+                    
+        
+    st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=Cal+Sans&display=swap" rel="stylesheet">
+<div style='text-align:center; margin-top:2.5rem; color:#fff; font-size:1.1rem; font-family: "Cal Sans", sans-serif;'>
+    <span style="font-size:1.2rem; color:#fff;">
+        <em>"Padel is like poison, it enters your body and you are infected forever."</em><br>
+        <strong>~Paquito Navarro</strong>
+    </span>
+</div>
+""", unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    main()
+                
+import streamlit as st
+
+st.markdown("""
+<style>
+.fixed-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+.fixed-button a {
+    display: inline-block;
+    background-color: #FFD700; /* Gold */
+    color: black !important;
+    padding: 0.75rem 1.5rem;
+    border-radius: 30px; /* Pill shape */
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.4);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+.fixed-button a:hover {
+    background-color: #FFC107; /* Darker gold on hover */
+    box-shadow: 0 6px 12px rgba(255, 193, 7, 0.6);
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown(f"""
+<div class="fixed-button" style="font-family: 'Cal Sans', sans-serif;">
+    <a href="https://padel-magazine.co.uk/category/news/international/" target="_blank" rel="noopener noreferrer" style="font-family: 'Cal Sans', sans-serif;">
+        <strong>LATEST PADEL NEWS 📰</strong>
+    </a>
+</div>
+""", unsafe_allow_html=True)
+
