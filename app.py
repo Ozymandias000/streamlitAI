@@ -52,20 +52,14 @@ def setup_documents():
     except Exception:
         collection = client.create_collection(name="docs")
 
-    # Read files
-    with open('2-game-regulations.md', 'r', encoding='utf-8') as f:
-        doc1 = f.read()
-
-    with open('2017_HISTORY-OF-PADEL_photo.md', 'r', encoding='utf-8') as f:
-        doc2 = f.read()
-
-    with open('Thinkpadelweb.md', 'r', encoding='utf-8') as f:
-        doc3 = f.read()
-
-    my_documents = [doc1, doc2, doc3]
+    doc_filenames = ['2-game-regulations.md', '2017_HISTORY-OF-PADEL_photo.md', 'Thinkpadelweb.md']
+    documents = []
+    for filename in doc_filenames:
+        with open(filename, 'r', encoding='utf-8') as f:
+            documents.append(f.read())
 
     collection.add(
-        documents=my_documents,
+        documents=documents,
         ids=["doc1", "doc2", "doc3"]
     )
 
