@@ -1,3 +1,8 @@
+import tempfile
+from pathlib import Path
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
+
 # Simple Q&A App using Streamlit
 # Students: Replace the documents below with your own!
 
@@ -46,25 +51,42 @@ st.markdown(
 # Your app starts here
 
 def setup_documents():
+    """
+    This function creates our document database
+    NOTE: This runs every time someone uses the app
+    In a real app, you'd want to save this data permanently
+    """
     client = chromadb.Client()
     try:
         collection = client.get_collection(name="docs")
     except Exception:
         collection = client.create_collection(name="docs")
+    
+    # STUDENT TASK: Replace these 5 documents with your own!
+    # Pick ONE topic: movies, sports, cooking, travel, technology
+    # Each document should be 150-200 words
+    # IMPORTANT: The quality of your documents affects answer quality!
+    
+    my_documents = [
+        "A Brief History of Padel: Padel originated in Mexico in 1969, when Enrique Corcuera created the first court at his home. The sport quickly spread to Spain and Argentina, where it gained immense popularity. Unlike tennis, padel is played on a smaller court enclosed by walls, which are part of the game. Its combination of squash and tennis elements makes it dynamic and strategic. By the 1990s, padel had become one of Spain’s most popular sports. The World Padel Tour (WPT) was established in 2013, further professionalizing the sport. As of 2025, padel is played in over 90 countries and is among the fastest-growing sports in Europe and the Middle East. Its appeal lies in its accessibility—easy for beginners yet tactically rich for advanced players. Today, efforts are ongoing to make padel an Olympic sport. The game's unique mix of teamwork, reflexes, and wall-play has helped it carve out a distinct identity within the racket sport world.",
 
-    doc_filenames = ['2-game-regulations.md', '2017_HISTORY-OF-PADEL_photo.md', 'Thinkpadelweb.md']
-    documents = []
-    for filename in doc_filenames:
-        with open(filename, 'r', encoding='utf-8') as f:
-            documents.append(f.read())
+        "Rules and How the Game Works: Padel is typically played in doubles, 4 players in total, on a 10x20 meter enclosed court. The scoring system mirrors tennis: games, sets, and matches. Players use solid, stringless rackets and a ball slightly less pressurized than a tennis ball. Serves must be underhand and bounce once before crossing diagonally. After the serve, players can use walls to return shots, making positioning and anticipation crucial. The ball must bounce once on the ground before hitting the walls. Shots that hit the opponent's glass wall before the ground are still valid. Unlike tennis, power alone doesn't win matches—strategy, angles, and teamwork are vital. The net is lower than in tennis (88 cm at the center) and the game is played at a faster pace due to shorter court distances. Padel encourages long rallies, spectacular recoveries, and creative use of the back glass. The sport emphasizes reflexes, placement, and coordination, making it accessible yet complex enough for elite competition.",
 
+        "Padel Equipment: What You Need to Play: Padel equipment is simple but specialized. The most important item is the padel racket—solid, perforated, and without strings. It’s made from carbon fiber or fiberglass with a foam core, and it varies in shape: round (control), diamond (power), or teardrop (hybrid). Players choose rackets based on their skill level and playing style. Padel balls resemble tennis balls but have slightly lower pressure for better control in enclosed courts. Footwear is also key: padel shoes offer lateral support and grip suitable for artificial turf and sand-filled surfaces. Apparel is similar to tennis—breathable clothes and wristbands are common. Safety gear like elbow or knee supports can help prevent injuries. Some players wear vibration-dampening gloves or wrist braces. Advanced gear might include smart sensors to track performance or custom-molded grips. While the setup cost is lower than other racket sports, choosing the right gear can greatly impact your game experience and performance.",
+
+        "Who Are the Best Padel Players Today?: As of 2025, the top figures in padel dominate headlines in Spain, Argentina, and increasingly worldwide. On the men’s side, Alejandro Galán and Juan Lebrón have long held top rankings, known for their aggressive play and fluid teamwork. Arturo Coello, a rising Spanish star, has surged through the ranks with powerful smashes and clever tactics. In the women’s circuit, Alejandra Salazar and Gemma Triay form one of the strongest duos, known for their consistency and resilience under pressure. Paula Josemaría has also become a household name due to her speed and anticipation. The World Padel Tour (WPT) and Premier Padel Tour showcase elite talent, with tournaments held across Europe, South America, and the Middle East. Some tennis stars like Andy Murray and Serena Williams have also shown interest in the sport. Rankings evolve rapidly as younger players emerge, but Spain and Argentina remain the dominant forces in both talent and fanbase.",
+
+        "The Global Rise of Padel: Padel has exploded in popularity over the last decade. Spain leads in player base and infrastructure, with over 20,000 courts and more than 5 million players. Argentina has long been a stronghold, with a deep-rooted padel culture. The sport has surged in Italy, Sweden, France, and the UAE, with courts popping up in urban areas and resorts. Padel's growth is driven by its social nature—it’s easy to learn, promotes teamwork, and doesn’t require advanced fitness to start. Major investments by sports clubs, ex-tennis pros, and celebrities (like Neymar and Beckham) have given it global exposure. In 2022, the International Padel Federation partnered with Qatar Sports Investments to launch the Premier Padel Tour, accelerating the sport’s international expansion. Padel clubs now exist in North America and Asia, and talks of Olympic inclusion are gaining momentum. Its combination of fun, accessibility, and fast-paced action continues to attract players of all ages and skill levels."
+    ]
+    
+    # Add documents to database with unique IDs
+    # ChromaDB needs unique identifiers for each document
     collection.add(
-        documents=documents,
-        ids=["doc1", "doc2", "doc3"]
+        documents=my_documents,
+        ids=["padel1", "padel2", "padel3", "padel4", "padel5"]
     )
-
+    
     return collection
-
 
 def get_answer(collection, question):
     """
@@ -265,3 +287,91 @@ with st.expander("ℹ️ **WHAT CAN I ASK ABOUT?**"):
 
 # TO RUN: Save as app.py, then type: streamlit run app.py
 
+# --- ADVANCED: DOCUMENT UPLOAD & KNOWLEDGE BASE EXTENSION ---
+
+
+def reset_collection(client, collection_name: str):
+    """Delete existing collection and create a new empty one"""
+    try:
+        client.delete_collection(name=collection_name)
+    except Exception:
+        pass
+    new_collection = client.create_collection(name=collection_name)
+    return new_collection
+
+def add_text_to_chromadb(text: str, filename: str, collection_name: str = "documents"):
+    """
+    Add text to existing or new ChromaDB collection.
+    Safe to call multiple times with same collection_name.
+    """
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=700,
+        chunk_overlap=100,
+        separators=["\n\n", "\n", " ", ""]
+    )
+    chunks = splitter.split_text(text)
+    # Initialize components (reuse if possible)
+    if not hasattr(add_text_to_chromadb, 'client'):
+        add_text_to_chromadb.client = chromadb.Client()
+        add_text_to_chromadb.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        add_text_to_chromadb.collections = {}
+    # Get or create collection
+    if collection_name not in add_text_to_chromadb.collections:
+        try:
+            collection = add_text_to_chromadb.client.get_collection(name=collection_name)
+        except:
+            collection = add_text_to_chromadb.client.create_collection(name=collection_name)
+        add_text_to_chromadb.collections[collection_name] = collection
+    collection = add_text_to_chromadb.collections[collection_name]
+    # Process chunks
+    for i, chunk in enumerate(chunks):
+        embedding = add_text_to_chromadb.embedding_model.encode(chunk).tolist()
+        metadata = {
+            "filename": filename,
+            "chunk_index": i,
+            "chunk_size": len(chunk)
+        }
+        collection.add(
+            embeddings=[embedding],
+            documents=[chunk],
+            metadatas=[metadata],
+            ids=[f"{filename}_chunk_{i}"]
+        )
+    return collection
+
+with st.expander("📄 **UPLOAD YOUR OWN DOCUMENTS (PDF, DOCX, TXT)**"):
+    uploaded_files = st.file_uploader(
+        "Upload documents to extend the knowledge base",
+        type=["pdf", "doc", "docx", "txt"],
+        accept_multiple_files=True
+    )
+    if st.button("Chunk and Store Documents"):
+        if uploaded_files:
+            client = chromadb.Client()
+            collection = reset_collection(client, "documents")
+            for file in uploaded_files:
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_file.write(file.getvalue())
+                    temp_file_path = temp_file.name
+                # You must implement convert_to_markdown for your environment
+                text = convert_to_markdown(temp_file_path)
+                collection = add_text_to_chromadb(text, file.name, collection_name="documents")
+                st.write(f"Stored {file.name} in ChromaDB")
+        else:
+            st.error("Upload files first!")
+
+    # Q&A on uploaded documents
+    question = st.text_input("Ask a question about your uploaded documents:")
+    if st.button("Get Answer from Uploaded Docs"):
+        if question:
+            # Use the uploaded docs collection if available, else fallback
+            try:
+                client = chromadb.Client()
+                collection = client.get_collection(name="documents")
+                answer = get_answer(collection, question)
+                st.write("**Answer:**")
+                st.write(answer)
+            except Exception:
+                st.error("No uploaded documents found. Please upload and store documents first.")
+        else:
+            st.write("Please enter a question!")
