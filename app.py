@@ -1,14 +1,6 @@
 # Simple Q&A App using Streamlit
 # Students: Replace the documents below with your own!
 
-# Fix SQLite version issue for ChromaDB on Streamlit Cloud
-try:
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-except ImportError:
-    pass
-
 # IMPORTS - These are the libraries we need
 import streamlit as st          # Creates web interface components
 import chromadb                # Stores and searches through documents  
@@ -54,42 +46,31 @@ st.markdown(
 # Your app starts here
 
 def setup_documents():
-    """
-    This function creates our document database
-    NOTE: This runs every time someone uses the app
-    In a real app, you'd want to save this data permanently
-    """
     client = chromadb.Client()
     try:
         collection = client.get_collection(name="docs")
     except Exception:
         collection = client.create_collection(name="docs")
-    
-    # STUDENT TASK: Replace these 5 documents with your own!
-    # Pick ONE topic: movies, sports, cooking, travel, technology
-    # Each document should be 150-200 words
-    # IMPORTANT: The quality of your documents affects answer quality!
-    
-    my_documents = [
-        "A Brief History of Padel: Padel originated in Mexico in 1969, when Enrique Corcuera created the first court at his home. The sport quickly spread to Spain and Argentina, where it gained immense popularity. Unlike tennis, padel is played on a smaller court enclosed by walls, which are part of the game. Its combination of squash and tennis elements makes it dynamic and strategic. By the 1990s, padel had become one of Spain’s most popular sports. The World Padel Tour (WPT) was established in 2013, further professionalizing the sport. As of 2025, padel is played in over 90 countries and is among the fastest-growing sports in Europe and the Middle East. Its appeal lies in its accessibility—easy for beginners yet tactically rich for advanced players. Today, efforts are ongoing to make padel an Olympic sport. The game's unique mix of teamwork, reflexes, and wall-play has helped it carve out a distinct identity within the racket sport world.",
 
-        "Rules and How the Game Works: Padel is typically played in doubles, 4 players in total, on a 10x20 meter enclosed court. The scoring system mirrors tennis: games, sets, and matches. Players use solid, stringless rackets and a ball slightly less pressurized than a tennis ball. Serves must be underhand and bounce once before crossing diagonally. After the serve, players can use walls to return shots, making positioning and anticipation crucial. The ball must bounce once on the ground before hitting the walls. Shots that hit the opponent's glass wall before the ground are still valid. Unlike tennis, power alone doesn't win matches—strategy, angles, and teamwork are vital. The net is lower than in tennis (88 cm at the center) and the game is played at a faster pace due to shorter court distances. Padel encourages long rallies, spectacular recoveries, and creative use of the back glass. The sport emphasizes reflexes, placement, and coordination, making it accessible yet complex enough for elite competition.",
+    # Read files
+    with open('2-game-regulations.md', 'r', encoding='utf-8') as f:
+        doc1 = f.read()
 
-        "Padel Equipment: What You Need to Play: Padel equipment is simple but specialized. The most important item is the padel racket—solid, perforated, and without strings. It’s made from carbon fiber or fiberglass with a foam core, and it varies in shape: round (control), diamond (power), or teardrop (hybrid). Players choose rackets based on their skill level and playing style. Padel balls resemble tennis balls but have slightly lower pressure for better control in enclosed courts. Footwear is also key: padel shoes offer lateral support and grip suitable for artificial turf and sand-filled surfaces. Apparel is similar to tennis—breathable clothes and wristbands are common. Safety gear like elbow or knee supports can help prevent injuries. Some players wear vibration-dampening gloves or wrist braces. Advanced gear might include smart sensors to track performance or custom-molded grips. While the setup cost is lower than other racket sports, choosing the right gear can greatly impact your game experience and performance.",
+    with open('2017_HISTORY-OF-PADEL_photo.md', 'r', encoding='utf-8') as f:
+        doc2 = f.read()
 
-        "Who Are the Best Padel Players Today?: As of 2025, the top figures in padel dominate headlines in Spain, Argentina, and increasingly worldwide. On the men’s side, Alejandro Galán and Juan Lebrón have long held top rankings, known for their aggressive play and fluid teamwork. Arturo Coello, a rising Spanish star, has surged through the ranks with powerful smashes and clever tactics. In the women’s circuit, Alejandra Salazar and Gemma Triay form one of the strongest duos, known for their consistency and resilience under pressure. Paula Josemaría has also become a household name due to her speed and anticipation. The World Padel Tour (WPT) and Premier Padel Tour showcase elite talent, with tournaments held across Europe, South America, and the Middle East. Some tennis stars like Andy Murray and Serena Williams have also shown interest in the sport. Rankings evolve rapidly as younger players emerge, but Spain and Argentina remain the dominant forces in both talent and fanbase.",
+    with open('Thinkpadelweb.md', 'r', encoding='utf-8') as f:
+        doc3 = f.read()
 
-        "The Global Rise of Padel: Padel has exploded in popularity over the last decade. Spain leads in player base and infrastructure, with over 20,000 courts and more than 5 million players. Argentina has long been a stronghold, with a deep-rooted padel culture. The sport has surged in Italy, Sweden, France, and the UAE, with courts popping up in urban areas and resorts. Padel's growth is driven by its social nature—it’s easy to learn, promotes teamwork, and doesn’t require advanced fitness to start. Major investments by sports clubs, ex-tennis pros, and celebrities (like Neymar and Beckham) have given it global exposure. In 2022, the International Padel Federation partnered with Qatar Sports Investments to launch the Premier Padel Tour, accelerating the sport’s international expansion. Padel clubs now exist in North America and Asia, and talks of Olympic inclusion are gaining momentum. Its combination of fun, accessibility, and fast-paced action continues to attract players of all ages and skill levels."
-    ]
-    
-    # Add documents to database with unique IDs
-    # ChromaDB needs unique identifiers for each document
+    my_documents = [doc1, doc2, doc3]
+
     collection.add(
         documents=my_documents,
-        ids=["padel1", "padel2", "padel3", "padel4", "padel5"]
+        ids=["doc1", "doc2", "doc3"]
     )
-    
+
     return collection
+
 
 def get_answer(collection, question):
     """
@@ -290,146 +271,3 @@ with st.expander("ℹ️ **WHAT CAN I ASK ABOUT?**"):
 
 # TO RUN: Save as app.py, then type: streamlit run app.py
 
-# --- Insert your Feature 1 function here ---
-def get_answer_with_source(collection, question):
-    """Enhanced answer function that shows source document"""
-    results = collection.query(
-        query_texts=[question],
-        n_results=3
-    )
-    docs = results["documents"][0]
-    distances = results["distances"][0]
-    ids = results["ids"][0]  # This tells us which document
-    if not docs or min(distances) > 1.5:
-        return "I don't have information about that topic.", "No source"
-    context = "\n\n".join([f"Document {i+1}: {doc}" for i, doc in enumerate(docs)])
-    prompt = f"""Context information:
-{context}
-Question: {question}
-Answer:"""
-    ai_model = pipeline("text2text-generation", model="google/flan-t5-small")
-    response = ai_model(prompt, max_length=150)
-    answer = response[0]['generated_text'].strip()
-    # Extract source from best matching document
-    best_source = ids[0].split('_doc_')[0]  # Get filename from ID
-    return answer, best_source
-
-# --- Insert your Feature 2 function here ---
-def show_document_manager():
-    """Display document manager interface"""
-    st.subheader("📋 Manage Documents")
-    if not st.session_state.get('converted_docs'):
-        st.info("No documents uploaded yet.")
-        return
-    # Show each document with delete button
-    for i, doc in enumerate(st.session_state.converted_docs):
-        col1, col2, col3 = st.columns([3, 1, 1])
-        with col1:
-            st.write(f"📋 {doc['filename']}")
-            st.write(f" Words: {len(doc['content'].split())}")
-        with col2:
-            # Preview button
-            if st.button("Preview", key=f"preview_{i}"):
-                st.session_state[f'show_preview_{i}'] = True
-        with col3:
-            # Delete button
-            if st.button("Delete", key=f"delete_{i}"):
-                # Remove from session state
-                st.session_state.converted_docs.pop(i)
-                # Rebuild database
-                st.session_state.collection = setup_documents()
-                add_docs_to_database(st.session_state.collection,
-                                     st.session_state.converted_docs)
-                st.experimental_rerun()
-        # Show preview if requested
-        if st.session_state.get(f'show_preview_{i}', False):
-            with st.expander(f"Preview: {doc['filename']}", expanded=True):
-                st.text(doc['content'][:500] + "..." if len(doc['content']) > 500
-                        else doc['content'])
-            if st.button("Hide Preview", key=f"hide_{i}"):
-                st.session_state[f'show_preview_{i}'] = False
-                st.experimental_rerun()
-
-# --- Helper functions needed for Feature 2 and 5 ---
-
-def add_docs_to_database(collection, docs):
-    # Helper to add new docs with unique IDs
-    # Docs: list of dict with 'filename' and 'content'
-    new_ids = []
-    new_texts = []
-    for doc in docs:
-        # Make an id using filename + incremental
-        new_ids.append(doc['filename'])
-        new_texts.append(doc['content'])
-    collection.add(documents=new_texts, ids=new_ids)
-    return len(docs)
-
-def convert_uploaded_files(uploaded_files):
-    # Dummy placeholder function for converting uploaded files
-    # You should replace this with actual conversion logic
-    converted = []
-    for f in uploaded_files:
-        converted.append({
-            "filename": f.name,
-            "content": f.getvalue().decode("utf-8", errors="ignore")
-        })
-    return converted
-
-# --- Feature 5: Tabbed interface with Upload, Ask, Manage, Stats ---
-def create_tabbed_interface():
-    tab1, tab2, tab3, tab4 = st.tabs(["Upload", "📋 Ask Questions", "📋 Manage", "📋❓ Stats"])
-    
-    with tab1:
-        st.header("Upload & Convert Documents")
-        uploaded_files = st.file_uploader(
-            "Choose files",
-            type=["pdf", "doc", "docx", "txt"],
-            accept_multiple_files=True
-        )
-        if st.button("Convert & Add"):
-            if uploaded_files:
-                converted_docs = convert_uploaded_files(uploaded_files)
-                if converted_docs:
-                    num_added = add_docs_to_database(st.session_state.collection,
-                                                    converted_docs)
-                    if 'converted_docs' not in st.session_state:
-                        st.session_state.converted_docs = []
-                    st.session_state.converted_docs.extend(converted_docs)
-                    st.success(f"Added {num_added} documents!")
-                    
-    with tab2:
-        st.header("Ask Questions")
-        if st.session_state.get('converted_docs'):
-            question = st.text_input("Your question:")
-            if st.button("Get Answer"):
-                if question:
-                    answer, source = get_answer_with_source(st.session_state.collection, question)
-                    st.write("**Answer:**")
-                    st.write(answer)
-                    st.write(f"**Source:** {source}")
-                else:
-                    st.info("Please enter a question!")
-        else:
-            st.info("Upload documents first!")
-        # Optionally: add search history here
-    
-    with tab3:
-        show_document_manager()
-    
-    with tab4:
-        st.header("Document Stats")
-        if st.session_state.get('converted_docs'):
-            st.write(f"Total uploaded documents: {len(st.session_state.converted_docs)}")
-            total_words = sum(len(doc['content'].split()) for doc in st.session_state.converted_docs)
-            st.write(f"Total words across documents: {total_words}")
-        else:
-            st.info("No documents uploaded yet.")
-
-# --- INITIALIZE SESSION STATE VARIABLES ---
-if 'converted_docs' not in st.session_state:
-    st.session_state.converted_docs = []
-if 'collection' not in st.session_state:
-    st.session_state.collection = setup_documents()
-
-# --- REPLACE THE ORIGINAL UI WITH TAB INTERFACE ---
-create_tabbed_interface()
