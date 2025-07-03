@@ -1,21 +1,18 @@
-import tempfile
+import streamlit as st
+import chromadb
+from transformers import pipeline
 from pathlib import Path
+import tempfile
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
-
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, AcceleratorOptions, AcceleratorDevice
 
 
-# Simple Q&A App using Streamlit
-# Students: Replace the documents below with your own!
+from datetime import datetime
 
-# IMPORTS - These are the libraries we need
-import streamlit as st          # Creates web interface components
-import chromadb                # Stores and searches through documents  
-from transformers import pipeline  # AI model for generating answers
 
 # Custom CSS for button styling 
 st.markdown("""
@@ -328,3 +325,218 @@ with st.expander("ℹ️ **WHAT CAN I ASK ABOUT?**"):
     """)
 
 # TO RUN: Save as app.py, then type: streamlit run app.py
+
+# Convert uploaded file to markdown text
+def convert_to_markdown(file_path: str) -> str:
+    path = Path(file_path)
+    ext = path.suffix.lower()
+
+    if ext == ".pdf":
+        pdf_opts = PdfPipelineOptions(do_ocr=False)
+        pdf_opts.accelerator_options = AcceleratorOptions(
+            num_threads=4,
+            device=AcceleratorDevice.CPU
+        )
+        converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_options=pdf_opts,
+                    backend=DoclingParseV2DocumentBackend
+                )
+            }
+        )
+        doc = converter.convert(file_path).document
+        return doc.export_to_markdown(image_mode="placeholder")
+
+    if ext in [".doc", ".docx"]:
+        converter = DocumentConverter()
+        doc = converter.convert(file_path).document
+        return doc.export_to_markdown(image_mode="placeholder")
+
+    if ext == ".txt":
+        try:
+            return path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return path.read_text(encoding="latin-1", errors="replace")
+
+    raise ValueError(f"Unsupported extension: {ext}")
+
+
+# Reset ChromaDB collection
+def reset_collection(client, collection_name: str):
+    try:
+        client.delete_collection(name=collection_name)
+    except Exception:
+        pass
+    return client.create_collection(name=collection_name)
+
+
+# Add text chunks to ChromaDB
+def add_text_to_chromadb(text: str, filename: str, collection_name: str = "documents"):
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=700,
+        chunk_overlap=100,
+        separators=["\n\n", "\n", " ", ""]
+    )
+    chunks = splitter.split_text(text)
+
+    if not hasattr(add_text_to_chromadb, 'client'):
+        add_text_to_chromadb.client = chromadb.Client()
+        add_text_to_chromadb.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        add_text_to_chromadb.collections = {}
+
+    if collection_name not in add_text_to_chromadb.collections:
+        try:
+            collection = add_text_to_chromadb.client.get_collection(name=collection_name)
+        except:
+            collection = add_text_to_chromadb.client.create_collection(name=collection_name)
+        add_text_to_chromadb.collections[collection_name] = collection
+
+    collection = add_text_to_chromadb.collections[collection_name]
+
+    for i, chunk in enumerate(chunks):
+        embedding = add_text_to_chromadb.embedding_model.encode(chunk).tolist()
+
+        metadata = {
+            "filename": filename,
+            "chunk_index": i,
+            "chunk_size": len(chunk)
+        }
+
+        collection.add(
+            embeddings=[embedding],
+            documents=[chunk],
+            metadatas=[metadata],
+            ids=[f"{filename}_chunk_{i}"]
+        )
+
+    return collection
+
+
+
+# Q&A function with source tracking
+def get_answer_with_source(collection, question):
+    results = collection.query(query_texts=[question], n_results=3)
+    docs = results["documents"][0]
+    distances = results["distances"][0]
+    ids = results["ids"][0] if "ids" in results else ["unknown"] * len(docs)
+
+    if not docs or min(distances) > 1.5:
+        return "I don't have information about that topic in my documents.", "No source"
+
+    context = "\n\n".join([f"Document {i+1}: {doc}" for i, doc in enumerate(docs)])
+    prompt = f"""Context information:
+{context}
+
+Question: {question}
+
+Instructions: Answer ONLY using the information provided above. If the answer is not in the context, respond with 'I don't know.' Do not add information from outside the context.
+
+Answer:"""
+
+    ai_model = pipeline("text2text-generation", model="google/flan-t5-small")
+    response = ai_model(prompt, max_length=150)
+    answer = response[0]['generated_text'].strip()
+    # Extract source from best matching document
+    best_source = ids[0].split('_chunk_')[0] if ids else "unknown"
+    return answer, best_source
+
+# Search history feature
+def add_to_search_history(question, answer, source):
+    if 'search_history' not in st.session_state:
+        st.session_state.search_history = []
+    st.session_state.search_history.insert(0, {
+        'question': question,
+        'answer': answer,
+        'source': source,
+        'timestamp': str(datetime.now().strftime("%H:%M:%S"))
+    })
+    if len(st.session_state.search_history) > 10:
+        st.session_state.search_history = st.session_state.search_history[:10]
+
+def show_search_history():
+    st.subheader("🕒 Recent Searches")
+    if 'search_history' not in st.session_state or not st.session_state.search_history:
+        st.info("No searches yet.")
+        return
+    for i, search in enumerate(st.session_state.search_history):
+        with st.expander(f"Q: {search['question'][:50]}... ({search['timestamp']})"):
+            st.write("**Question:**", search['question'])
+            st.write("**Answer:**", search['answer'])
+            st.write("**Source:**", search['source'])
+
+# Document manager with delete and preview
+def show_document_manager():
+    st.subheader("📋 Manage Documents")
+    if not st.session_state.get('converted_docs', []):
+        st.info("No documents uploaded yet.")
+        return
+    for i, doc in enumerate(st.session_state.converted_docs):
+        col1, col2, col3 = st.columns([3, 1, 1])
+        with col1:
+            st.write(f"📄 {doc['filename']}")
+            st.write(f"   Words: {len(doc['content'].split())}")
+        with col2:
+            if st.button("Preview", key=f"preview_{i}"):
+                st.session_state[f'show_preview_{i}'] = True
+        with col3:
+            if st.button("Delete", key=f"delete_{i}"):
+                st.session_state.converted_docs.pop(i)
+                # Rebuild database
+                st.session_state.collection = reset_collection(st.session_state.client, "documents")
+                for d in st.session_state.converted_docs:
+                    add_text_to_chromadb(d['content'], d['filename'], collection_name="documents")
+                st.rerun()
+        if st.session_state.get(f'show_preview_{i}', False):
+            with st.expander(f"Preview: {doc['filename']}", expanded=True):
+                st.text(doc['content'][:500] + "..." if len(doc['content']) > 500 else doc['content'])
+                if st.button("Hide Preview", key=f"hide_{i}"):
+                    st.session_state[f'show_preview_{i}'] = False
+                    st.rerun()
+
+# Document statistics
+def show_document_stats():
+    st.subheader("📊 Document Statistics")
+    if not st.session_state.get('converted_docs', []):
+        st.info("No documents to analyze.")
+        return
+    total_docs = len(st.session_state.converted_docs)
+    total_words = sum(len(doc['content'].split()) for doc in st.session_state.converted_docs)
+    avg_words = total_words // total_docs if total_docs > 0 else 0
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Documents", total_docs)
+    with col2:
+        st.metric("Total Words", f"{total_words:,}")
+    with col3:
+        st.metric("Average Words/Doc", f"{avg_words:,}")
+    file_types = {}
+    for doc in st.session_state.converted_docs:
+        ext = Path(doc['filename']).suffix.lower()
+        file_types[ext] = file_types.get(ext, 0) + 1
+    st.write("**File Types:**")
+    for ext, count in file_types.items():
+        st.write(f"• {ext}: {count} files")
+
+# Helper: convert uploaded files to markdown and store in session
+def convert_uploaded_files(uploaded_files):
+    converted_docs = []
+    for file in uploaded_files:
+        suffix = Path(file.name).suffix
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file.write(file.getvalue())
+            temp_file_path = temp_file.name
+        text = convert_to_markdown(temp_file_path)
+        converted_docs.append({
+            'filename': file.name,
+            'content': text
+        })
+    return converted_docs
+
+# Helper: add docs to database
+def add_docs_to_database(collection, docs):
+    count = 0
+    for doc in docs:
+        add_text_to_chromadb(doc['content'], doc['filename'], collection_name="documents")
+        count += 1
+    return count
